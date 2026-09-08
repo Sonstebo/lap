@@ -1,7 +1,7 @@
 {
-  "productName": "Lap",
+  "productName": "Photos",
   "version": "0.3.1",
-  "identifier": "com.julyx10.lap",
+  "identifier": "com.sonstebo.photos",
   "build": {
     "beforeBuildCommand": "pnpm --dir ../src-vite build",
     "beforeDevCommand": "pnpm --dir ../src-vite dev",

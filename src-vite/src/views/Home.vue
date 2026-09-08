@@ -11,7 +11,7 @@
     </transition>
 
     <!-- Title Bar -->
-    <TitleBar v-if="showDesktopTitleBar" titlebar="Lap" viewName="Home" :icon="iconLogo"/>
+    <TitleBar v-if="showDesktopTitleBar" titlebar="Photos" viewName="Home" :icon="iconLogo"/>
 
     <!-- Main Content -->
     <div class="flex-1 flex overflow-hidden">

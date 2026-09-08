@@ -1,6 +1,6 @@
 [package]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-name = "Lap"
+name = "Photos"
 version = "0.3.1"
 description = "An offline-first photo manager for large local libraries."
 homepage = "https://julyx10.github.io/lap"

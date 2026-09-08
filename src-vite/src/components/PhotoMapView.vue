@@ -55,7 +55,7 @@ const props = defineProps({
   active: { type: Boolean, default: true },
   lat: { type: Number, default: 0 },
   lon: { type: Number, default: 0 },
-  label: { type: String, default: 'Lap' },
+  label: { type: String, default: 'Photos' },
 })
 const emit = defineEmits(['open-cluster', 'select-file', 'preview-file', 'restored'])
 
@@ -403,7 +403,7 @@ function toggleMap() { config.infoPanel.mapTheme = config.infoPanel.mapTheme ===
 function validLatLon(lat, lon) { return lat != null && lon != null && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180 }
 async function openAppleMaps() {
   if (!showAppleMapsButton.value) return
-  const label = props.label.trim() || 'Lap'
+  const label = props.label.trim() || 'Photos'
   await openExternalUrl(`maps://?ll=${props.lat},${props.lon}&q=${encodeURIComponent(label)}`)
 }
 function handleMapKeyDown(event) {

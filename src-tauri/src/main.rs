@@ -195,6 +195,7 @@ async fn main() {
             }
 
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                eprintln!("[close] CloseRequested on main window");
                 // Prevent the default close so we can decide what to do per platform.
                 api.prevent_close();
 
@@ -221,7 +222,9 @@ async fn main() {
                         }
                     }
 
+                    eprintln!("[close] calling app_handle.exit(0)");
                     app_handle.exit(0);
+                    eprintln!("[close] exit(0) returned");
                 }
             }
         })
@@ -452,7 +455,11 @@ async fn main() {
                         let _ = app_handle.track_event("app_started", None);
                     }
                 }
+                tauri::RunEvent::ExitRequested { code, .. } => {
+                    eprintln!("[close] RunEvent::ExitRequested code={:?}", code);
+                }
                 tauri::RunEvent::Exit { .. } => {
+                    eprintln!("[close] RunEvent::Exit");
                     if aptabase_enabled {
                         let _ = app_handle.track_event("app_exited", None);
                         // Only registered when APTABASE_KEY was set at build time; without it
