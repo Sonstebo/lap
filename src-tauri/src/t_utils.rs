@@ -3676,6 +3676,31 @@ pub async fn index_album_worker(
     skip_file_path: Option<String>,
     group_raw_jpeg_pairs: bool,
 ) -> Result<(), String> {
+    if crate::t_sqlite::Album::is_managed(album_id) {
+        // An external tool owns these rows; scanning would prune files that are
+        // fetched on demand. Report the album as complete and leave it alone.
+        let album = Album::get_album_by_id(album_id).map_err(|e| e.to_string())?;
+        let total = album.total.unwrap_or(0).max(0) as u64;
+        let _ = app_handle.emit(
+            "index_finished",
+            FinishedPayload {
+                album_id,
+                phase: "complete".to_string(),
+                indexed: total,
+                processed: total,
+                search_ready: total,
+                total,
+                search_total: total,
+                skipped: 0,
+                skipped_size: 0,
+                failed: 0,
+                failed_size: 0,
+                scan_total: total,
+                scan_total_size: 0,
+            },
+        );
+        return Ok(());
+    }
     let _album_scan_guard = AlbumScanGuard::acquire(album_id)?;
     let scan_start = std::time::Instant::now();
     // Generate a unique scan time for this session (current timestamp)

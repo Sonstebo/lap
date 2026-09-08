@@ -33,6 +33,7 @@ ICON="$PREFIX/share/icons/hicolor/512x512/apps/$APP_ID.png"
 
 if [ "$UNINSTALL" = 1 ]; then
   rm -f "$PREFIX/bin/$PRODUCT" "$DESKTOP" "$ICON"
+  for sz in 16 32 48 64 128 256; do rm -f "$PREFIX/share/icons/hicolor/${sz}x${sz}/apps/$APP_ID.png"; done
   rm -rf "${PREFIX:?}/lib/$PRODUCT"
   command -v update-desktop-database >/dev/null && update-desktop-database "$PREFIX/share/applications" || true
   echo "removed $PRODUCT from $PREFIX"
@@ -55,6 +56,10 @@ for res in models ffmpeg; do
 done
 
 install -Dm644 "$ROOT/src-tauri/icons/icon.png" "$ICON"
+for sz in 16 32 48 64 128 256; do
+  src="$ROOT/src-tauri/icons/${sz}x${sz}.png"
+  [ -f "$src" ] && install -Dm644 "$src" "$PREFIX/share/icons/hicolor/${sz}x${sz}/apps/$APP_ID.png"
+done
 mkdir -p "$(dirname "$DESKTOP")"
 cat > "$DESKTOP" <<EOF
 [Desktop Entry]

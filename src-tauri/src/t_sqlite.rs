@@ -348,6 +348,23 @@ impl Album {
     }
 
     /// get album info by id
+    /// Whether an external tool maintains this album's rows (see t_fetch.rs and
+    /// `set_album_managed`). A managed album is never scanned: its files may be
+    /// absent until a fetch-on-open command materialises them, so a scan would
+    /// delete rows that are perfectly valid.
+    pub fn is_managed(id: i64) -> bool {
+        open_conn()
+            .ok()
+            .and_then(|conn| {
+                conn.query_row("SELECT managed FROM albums WHERE id = ?1", params![id], |row| {
+                    row.get::<_, Option<i64>>(0)
+                })
+                .ok()
+                .flatten()
+            })
+            .is_some_and(|v| v != 0)
+    }
+
     pub fn get_album_by_id(id: i64) -> Result<Self, String> {
         let conn = open_conn()?;
         let result = conn.query_row(

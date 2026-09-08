@@ -288,6 +288,24 @@ pub fn add_library(name: &str) -> Result<Library, String> {
     t_config::add_library(name)
 }
 
+/// whether an external tool maintains this album's rows (no scanning)
+#[tauri::command]
+pub fn get_album_managed(album_id: i64) -> Result<bool, String> {
+    Ok(t_sqlite::Album::is_managed(album_id))
+}
+
+/// mark an album as maintained by an external tool, or hand it back to scanning
+#[tauri::command]
+pub fn set_album_managed(album_id: i64, managed: bool) -> Result<(), String> {
+    let conn = t_sqlite::open_conn()?;
+    conn.execute(
+        "UPDATE albums SET managed = ?1 WHERE id = ?2",
+        rusqlite::params![i64::from(managed), album_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// the fetch-on-open command of an album (see t_fetch.rs), if any
 #[tauri::command]
 pub fn get_album_fetch_command(album_id: i64) -> Result<Option<String>, String> {

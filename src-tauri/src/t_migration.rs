@@ -153,6 +153,11 @@ fn get_migrations() -> Vec<Migration> {
             description: "Add albums.fetch_command (fetch on open)",
             sql: "",
         },
+        Migration {
+            version: 18,
+            description: "Add albums.managed (rows maintained by an external tool)",
+            sql: "",
+        },
     ]
 }
 
@@ -472,6 +477,11 @@ pub fn check_and_migrate(conn: &Connection) -> Result<(), String> {
                 if !table_has_column(conn, "albums", "fetch_command")? {
                     conn.execute("ALTER TABLE albums ADD COLUMN fetch_command TEXT", [])
                         .map_err(|e| format!("Migration 17 failed adding fetch_command: {}", e))?;
+                }
+            } else if migration.version == 18 {
+                if !table_has_column(conn, "albums", "managed")? {
+                    conn.execute("ALTER TABLE albums ADD COLUMN managed INTEGER NOT NULL DEFAULT 0", [])
+                        .map_err(|e| format!("Migration 18 failed adding managed: {}", e))?;
                 }
             } else if !migration.sql.trim().is_empty() {
                 conn.execute_batch(migration.sql)

@@ -262,6 +262,8 @@ async fn main() {
             t_cmds::add_album,
             t_cmds::edit_album,
             t_cmds::get_album_fetch_command,
+            t_cmds::get_album_managed,
+            t_cmds::set_album_managed,
             t_cmds::set_album_fetch_command,
             t_cmds::remove_album,
             t_cmds::reorder_albums,
