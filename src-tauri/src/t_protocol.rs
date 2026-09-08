@@ -1,6 +1,6 @@
 use tauri::{Builder, Wry};
 
-use crate::{t_image, t_sqlite};
+use crate::{t_fetch, t_image, t_sqlite};
 
 fn text_response(status: http::StatusCode, body: &str) -> http::Response<Vec<u8>> {
     http::Response::builder()
@@ -167,6 +167,20 @@ pub fn register_protocols(builder: Builder<Wry>) -> Builder<Wry> {
             };
 
             tauri::async_runtime::spawn(async move {
+                // A missing file may be fetchable: the album's fetch-on-open command (t_fetch.rs).
+                if !std::path::Path::new(&file_path).exists() {
+                    let template = t_sqlite::AFile::fetch_command(file_id);
+                    let path_for_fetch = file_path.clone();
+                    let present = tauri::async_runtime::spawn_blocking(move || {
+                        t_fetch::ensure_present(template.as_deref(), &path_for_fetch)
+                    })
+                    .await
+                    .unwrap_or(false);
+                    if !present {
+                        responder.respond(text_response(http::StatusCode::NOT_FOUND, "file not on disk"));
+                        return;
+                    }
+                }
                 let response = match t_image::get_file_image_bytes_cached(
                     &file_path,
                     prefer_embedded_raw_preview,

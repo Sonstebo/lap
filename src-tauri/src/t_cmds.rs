@@ -288,6 +288,31 @@ pub fn add_library(name: &str) -> Result<Library, String> {
     t_config::add_library(name)
 }
 
+/// the fetch-on-open command of an album (see t_fetch.rs), if any
+#[tauri::command]
+pub fn get_album_fetch_command(album_id: i64) -> Result<Option<String>, String> {
+    let conn = t_sqlite::open_conn()?;
+    conn.query_row(
+        "SELECT fetch_command FROM albums WHERE id = ?1",
+        rusqlite::params![album_id],
+        |row| row.get::<_, Option<String>>(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// set or clear the fetch-on-open command of an album; `{path}` and `{name}` are replaced, shell-quoted
+#[tauri::command]
+pub fn set_album_fetch_command(album_id: i64, command: Option<String>) -> Result<(), String> {
+    let conn = t_sqlite::open_conn()?;
+    let value = command.filter(|c| !c.trim().is_empty());
+    conn.execute(
+        "UPDATE albums SET fetch_command = ?1 WHERE id = ?2",
+        rusqlite::params![value, album_id],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// hide a library
 #[tauri::command]
 pub fn hide_library(id: &str, hidden: bool) -> Result<(), String> {

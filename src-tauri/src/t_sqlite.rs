@@ -3611,6 +3611,21 @@ impl AFile {
     }
 
     /// get a file info from db by file_id
+    /// The fetch-on-open command of the album a file belongs to (see t_fetch.rs).
+    pub fn fetch_command(file_id: i64) -> Option<String> {
+        let conn = open_conn().ok()?;
+        conn.query_row(
+            "SELECT c.fetch_command FROM afiles a
+             JOIN afolders b ON a.folder_id = b.id
+             JOIN albums c ON b.album_id = c.id
+             WHERE a.id = ?1",
+            params![file_id],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .ok()
+        .flatten()
+    }
+
     pub fn get_file_info(file_id: i64) -> Result<Option<Self>, String> {
         let conn = open_conn()?;
 

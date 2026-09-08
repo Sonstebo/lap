@@ -22,6 +22,7 @@ mod t_common;
 mod t_config;
 mod t_dedup;
 mod t_face;
+mod t_fetch;
 mod t_heif;
 mod t_http;
 mod t_image;
@@ -257,6 +258,8 @@ async fn main() {
             t_cmds::get_album_visible_counts,
             t_cmds::add_album,
             t_cmds::edit_album,
+            t_cmds::get_album_fetch_command,
+            t_cmds::set_album_fetch_command,
             t_cmds::remove_album,
             t_cmds::reorder_albums,
             t_cmds::set_album_cover,

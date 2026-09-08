@@ -148,6 +148,11 @@ fn get_migrations() -> Vec<Migration> {
             description: "Add motion photo offset",
             sql: "",
         },
+        Migration {
+            version: 17,
+            description: "Add albums.fetch_command (fetch on open)",
+            sql: "",
+        },
     ]
 }
 
@@ -462,6 +467,11 @@ pub fn check_and_migrate(conn: &Connection) -> Result<(), String> {
                         .map_err(|e| {
                             format!("Migration 16 failed adding motion_photo_offset: {}", e)
                         })?;
+                }
+            } else if migration.version == 17 {
+                if !table_has_column(conn, "albums", "fetch_command")? {
+                    conn.execute("ALTER TABLE albums ADD COLUMN fetch_command TEXT", [])
+                        .map_err(|e| format!("Migration 17 failed adding fetch_command: {}", e))?;
                 }
             } else if !migration.sql.trim().is_empty() {
                 conn.execute_batch(migration.sql)
