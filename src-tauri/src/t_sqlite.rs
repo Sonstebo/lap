@@ -3648,6 +3648,18 @@ impl AFile {
 
     /// get a file info from db by file_id
     /// The fetch-on-open command of the album a file belongs to (see t_fetch.rs).
+    /// Any file path in the library, for the startup check of the asset scope.
+    pub fn first_file_path() -> Result<Option<String>, String> {
+        let conn = open_conn()?;
+        conn.query_row(
+            "SELECT b.path || '/' || a.name FROM afiles a JOIN afolders b ON a.folder_id = b.id LIMIT 1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())
+    }
+
     /// (tool path, file path) for a file whose album names a tool it belongs to.
     pub fn tool_for(file_id: i64) -> Option<(String, String)> {
         let conn = open_conn().ok()?;

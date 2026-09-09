@@ -31,19 +31,22 @@
       ],
       "assetProtocol": {
         "enable": true,
-        "scope": [
-          "$HOME/**",
-          "$PICTURES/**",
-          "$VIDEOS/**",
-          "$DOCUMENT/**",
-          "$DESKTOP/**",
-          "$DOWNLOAD/**",
-          "$APPCACHE/**",
-          "/Volumes/**",
-          "/media/**",
-          "/mnt/**",
-          "/run/media/**"
-        ]
+        "scope": {
+          "allow": [
+            "$HOME/**",
+            "$PICTURES/**",
+            "$VIDEOS/**",
+            "$DOCUMENT/**",
+            "$DESKTOP/**",
+            "$DOWNLOAD/**",
+            "$APPCACHE/**",
+            "/Volumes/**",
+            "/media/**",
+            "/mnt/**",
+            "/run/media/**"
+          ],
+          "requireLiteralLeadingDot": false
+        }
       }
     }
   },

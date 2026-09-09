@@ -179,6 +179,17 @@ async fn main() {
                 }
             }
 
+            // One line at startup saying whether the webview may load the library's
+            // files: the asset protocol refuses hidden directories unless the scope
+            // says otherwise, which silently breaks every ordinary image.
+            {
+                use tauri::Manager;
+                if let Ok(Some(sample)) = t_sqlite::AFile::first_file_path() {
+                    let allowed = _app.asset_protocol_scope().is_allowed(&sample);
+                    println!("asset scope: {} -> {}", sample, if allowed { "allowed" } else { "REFUSED" });
+                }
+            }
+
             t_utils::start_folder_mtime_sync(_app.handle().clone());
 
             // Open devtools in development mode
