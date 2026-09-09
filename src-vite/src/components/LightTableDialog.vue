@@ -26,9 +26,10 @@
           />
           <button
             class="shrink-0 px-3 py-1 rounded border border-base-content/20 hover:bg-base-content/10 disabled:opacity-40"
-            :disabled="asking"
+            :disabled="asking || (!brief.trim() && !items.length)"
+            :title="brief.trim() ? 'Find photos matching what you typed' : 'Find photos that go with the first one'"
             @click="propose"
-          >{{ asking ? 'Looking…' : 'Suggest' }}</button>
+          >{{ asking ? 'Looking…' : (brief.trim() ? 'Suggest' : 'More like this') }}</button>
         </div>
 
         <div v-if="candidates.length" class="flex flex-col gap-1">
@@ -285,7 +286,9 @@ function args() {
 async function draft() {
   if (items.value.length < 2) {
     page.value = null;
-    error.value = 'keep at least two photos to lay out a page';
+    error.value = items.value.length
+      ? 'one photo is not a collage: press More like this, or describe what should go with it'
+      : 'nothing to lay out yet';
     return;
   }
   drafting.value = true;
@@ -313,6 +316,8 @@ async function propose() {
   try {
     const answer = (await invoke('light_table_select', {
       brief: brief.value,
+      // With nothing typed, grow the set around the photo you started from.
+      similar: brief.value.trim() ? null : (items.value[0]?.path ?? null),
       count: count.value,
       variety: variety.value,
       spread: spreadDays.value ? 'day' : 'none',

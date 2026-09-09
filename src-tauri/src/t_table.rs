@@ -121,12 +121,16 @@ fn safe_name(asset_id: &str) -> String {
 /// Ask the library to choose a set. Nothing is added anywhere: the chosen photos
 /// come back as candidates, and each one needs a keystroke to survive.
 #[tauri::command]
-pub async fn light_table_select(brief: Option<String>, count: i64, variety: f64,
-                                spread: String) -> Result<Value, String> {
+pub async fn light_table_select(brief: Option<String>, similar: Option<String>, count: i64,
+                                variety: f64, spread: String) -> Result<Value, String> {
     let cli = tool()?;
     let mut args = vec!["select".to_string()];
     if let Some(text) = brief.as_ref().filter(|t| !t.trim().is_empty()) {
         args.push(text.clone());
+    } else if let Some(path) = similar.as_ref().filter(|p| !p.trim().is_empty()) {
+        // Growing a set around one photograph: the tool takes the album entry path.
+        args.push("--similar".into());
+        args.push(path.clone());
     }
     args.push("--count".into());
     args.push(count.clamp(1, 60).to_string());

@@ -145,6 +145,15 @@ export const useFileMenuItems = (
         action: createAction('ask')
       },
       {
+        // Many photos into one picture. Offered from a single photo too, because
+        // otherwise it is invisible unless select mode is already on: the light
+        // table grows a set around whichever photo you started from.
+        label: String(localeMsg.value.menu.file.compose || 'Compose…'),
+        icon: markRaw(IconSplitOn4),
+        disabled: !isImage,
+        action: createAction('compose')
+      },
+      {
         label: localeMsg.value.menu.file.print,
         icon: markRaw(IconPrint),
         disabled: !isImage,

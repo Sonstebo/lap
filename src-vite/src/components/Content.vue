@@ -3943,10 +3943,13 @@ function handleItemAction(payload: { action: string, index: number }) {
       askFileId.value = id > 0 ? id : null;
     },
     'compose': () => {
-      // Whatever is selected, in the order the grid shows it.
-      composeItems.value = getActionableSelectedItems()
-        .filter((f: any) => f?.file_type === 1 && f?.file_path)
-        .map((f: any) => ({ path: String(f.file_path), file_id: Number(f.id) }));
+      // Whatever is selected, in the order the grid shows it. Outside select mode
+      // the multi-selection is empty, so fall back to the photo under the cursor
+      // the way the editor does; without this the menu entry does nothing.
+      const chosen = getActionableSelectedItems().filter((f: any) => f?.file_type === 1 && f?.file_path);
+      const one = fileList.value[selectedItemIndex.value];
+      const use = chosen.length ? chosen : (one && one.file_type === 1 && one.file_path ? [one] : []);
+      composeItems.value = use.map((f: any) => ({ path: String(f.file_path), file_id: Number(f.id) }));
     },
     'open-external-app': () => {
       void openInExternalApp();
