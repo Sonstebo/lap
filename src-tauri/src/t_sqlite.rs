@@ -3648,6 +3648,32 @@ impl AFile {
 
     /// get a file info from db by file_id
     /// The fetch-on-open command of the album a file belongs to (see t_fetch.rs).
+    /// (tool path, file path) for a file whose album names a tool it belongs to.
+    pub fn tool_for(file_id: i64) -> Option<(String, String)> {
+        let conn = open_conn().ok()?;
+        conn.query_row(
+            "SELECT c.cli, b.path || '/' || a.name FROM afiles a
+             JOIN afolders b ON a.folder_id = b.id
+             JOIN albums c ON b.album_id = c.id
+             WHERE a.id = ?1",
+            params![file_id],
+            |row| Ok((row.get::<_, Option<String>>(0)?, row.get::<_, String>(1)?)),
+        )
+        .ok()
+        .and_then(|(cli, path)| cli.filter(|c| !c.trim().is_empty()).map(|c| (c, path)))
+    }
+
+    /// The tool of the first album that names one, for library-wide questions.
+    pub fn any_tool() -> Option<String> {
+        let conn = open_conn().ok()?;
+        conn.query_row(
+            "SELECT cli FROM albums WHERE cli IS NOT NULL AND cli <> '' ORDER BY id LIMIT 1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .ok()
+    }
+
     /// The fetch-on-open command of the album that owns `file_path`, for callers that
     /// only have a path (the video server).
     pub fn fetch_command_for_path(file_path: &str) -> Option<String> {

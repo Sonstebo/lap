@@ -158,6 +158,11 @@ fn get_migrations() -> Vec<Migration> {
             description: "Add albums.managed (rows maintained by an external tool)",
             sql: "",
         },
+        Migration {
+            version: 19,
+            description: "Add albums.cli (the tool that maintains a managed album)",
+            sql: "",
+        },
     ]
 }
 
@@ -482,6 +487,11 @@ pub fn check_and_migrate(conn: &Connection) -> Result<(), String> {
                 if !table_has_column(conn, "albums", "managed")? {
                     conn.execute("ALTER TABLE albums ADD COLUMN managed INTEGER NOT NULL DEFAULT 0", [])
                         .map_err(|e| format!("Migration 18 failed adding managed: {}", e))?;
+                }
+            } else if migration.version == 19 {
+                if !table_has_column(conn, "albums", "cli")? {
+                    conn.execute("ALTER TABLE albums ADD COLUMN cli TEXT", [])
+                        .map_err(|e| format!("Migration 19 failed adding cli: {}", e))?;
                 }
             } else if !migration.sql.trim().is_empty() {
                 conn.execute_batch(migration.sql)

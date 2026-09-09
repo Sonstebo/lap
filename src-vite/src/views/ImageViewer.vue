@@ -175,6 +175,13 @@
       />
     </div>
 
+    <AskPhotoDialog
+      v-if="showAskDialog && activeFileInfo"
+      :fileId="activeFileInfo.id"
+      :fileName="activeFileInfo.name"
+      @close="showAskDialog = false"
+    />
+
     <TaggingDialog
       v-if="showTaggingDialog"
       :fileIds="taggingFileIds"
@@ -234,6 +241,7 @@ import MessageBox from '@/components/MessageBox.vue';
 import TButton from '@/components/TButton.vue';
 import StatusBar from '@/components/StatusBar.vue';
 import TaggingDialog from '@/components/TaggingDialog.vue';
+import AskPhotoDialog from '@/components/AskPhotoDialog.vue';
 import AddToCollectionDialog from '@/components/AddToCollectionDialog.vue';
 
 import { 
@@ -319,6 +327,8 @@ const visiblePanes = computed<Pane[]>(() =>
   splitCount.value === 4 ? allPanes : ['left', 'right']
 );
 const showTaggingDialog = ref(false);
+// "a" opens the conversation about the photo on screen
+const showAskDialog = ref(false);
 const showAddToCollectionDialog = ref(false);
 const showCommentMsgbox = ref(false);
 const taggingFileIds = ref<number[]>([]);
@@ -584,6 +594,11 @@ onUnmounted(() => {
 // Handle keyboard shortcuts
 function handleKeyDown(event: KeyboardEvent) {
   if(uiStore.inputStack.length > 0) {
+    return;
+  }
+  if ((event.key === 'a' || event.key === 'A') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    event.preventDefault();
+    showAskDialog.value = true;
     return;
   }
 
