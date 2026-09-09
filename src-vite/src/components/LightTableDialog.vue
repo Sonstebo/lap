@@ -16,6 +16,58 @@
           </div>
         </div>
 
+        <!-- ask for a set; nothing is added until you keep it -->
+        <div class="flex gap-2 items-center">
+          <input
+            v-model="brief"
+            class="flex-1 min-w-0 rounded bg-base-100/60 border border-base-content/20 px-2 py-1 outline-none"
+            placeholder="What should be in it? For example: the winter trip, one from each day"
+            @keydown.enter.exact.prevent="propose"
+          />
+          <button
+            class="shrink-0 px-3 py-1 rounded border border-base-content/20 hover:bg-base-content/10 disabled:opacity-40"
+            :disabled="asking"
+            @click="propose"
+          >{{ asking ? 'Looking…' : 'Suggest' }}</button>
+        </div>
+
+        <div v-if="candidates.length" class="flex flex-col gap-1">
+          <div class="flex items-center gap-2 text-[11px] uppercase tracking-wider opacity-50">
+            <span class="flex-1">Suggested &mdash; {{ candidates.length }} waiting</span>
+            <button class="normal-case tracking-normal underline" @click="keepAll">Keep all</button>
+            <button class="normal-case tracking-normal underline" @click="candidates = []">Discard</button>
+          </div>
+          <div class="flex gap-1 overflow-x-auto pb-1">
+            <div
+              v-for="(c, i) in candidates"
+              :key="c.path"
+              class="relative shrink-0 w-20 h-16 rounded overflow-hidden border border-base-content/20 group"
+            >
+              <img :src="thumb(c.file_id)" class="w-full h-full object-cover" :alt="c.filename" />
+              <div class="absolute inset-x-0 bottom-0 flex opacity-0 group-hover:opacity-100 transition-opacity">
+                <button class="flex-1 py-0.5 text-[10px] font-semibold text-white bg-success/90" @click="keep(i)">Keep</button>
+                <button class="flex-1 py-0.5 text-[10px] font-semibold text-white bg-error/90" @click="candidates.splice(i, 1)">Drop</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="items.length" class="flex gap-1 overflow-x-auto pb-1">
+          <div
+            v-for="(it, i) in items"
+            :key="it.path"
+            class="relative shrink-0 w-14 h-11 rounded overflow-hidden border border-base-content/20 group"
+            :title="it.path"
+          >
+            <img :src="thumb(it.file_id)" class="w-full h-full object-cover" alt="" />
+            <button
+              class="absolute right-0 top-0 w-4 h-4 text-[10px] leading-4 text-white bg-base-300/80 opacity-0 group-hover:opacity-100"
+              title="Take it out of the set"
+              @click="drop(i)"
+            >&times;</button>
+          </div>
+        </div>
+
         <div class="h-6 flex items-center gap-2">
           <p class="truncate opacity-70 flex-1">{{ caption }}</p>
           <button
@@ -58,10 +110,23 @@
 
         <div class="flex flex-col gap-1">
           <label class="text-[11px] uppercase tracking-wider opacity-50 flex justify-between">
-            <span>Photos</span><span>{{ count }}</span>
+            <span>Photos</span><span>{{ count }} of {{ items.length }}</span>
           </label>
           <input type="range" min="2" :max="maxCount" v-model.number="count" class="range range-xs" />
         </div>
+
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] uppercase tracking-wider opacity-50 flex justify-between">
+            <span>Variety</span><span>{{ variety.toFixed(2) }}</span>
+          </label>
+          <input type="range" min="0" max="1" step="0.05" v-model.number="variety" class="range range-xs" />
+          <p class="text-[10px] leading-tight opacity-40">0 is the closest match to what you asked for, 1 the widest spread.</p>
+        </div>
+
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" v-model="spreadDays" class="checkbox checkbox-xs" />
+          <span class="text-xs">One from each day</span>
+        </label>
 
         <div class="flex flex-col gap-1">
           <label class="text-[11px] uppercase tracking-wider opacity-50 flex justify-between">
@@ -108,10 +173,12 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import ModalDialog from '@/components/ModalDialog.vue';
+import { getThumbUrl } from '@/common/utils';
 
-const props = defineProps<{ collection?: string | null; paths?: string[]; collectionLabel?: string }>();
+const props = defineProps<{ items?: Item[]; collectionLabel?: string }>();
 const emit = defineEmits<{ (e: 'close'): void }>();
 
+type Item = { path: string; file_id: number; filename?: string };
 type Page = {
   path: string; width: number; height: number; photos: number; note: string;
   draft: boolean; faces_used?: number; bytes: number; seconds: number; fetched?: number;
@@ -131,6 +198,12 @@ const shapes = [
   { id: 'spread', label: 'Two pages' }, { id: '16:9', label: 'Screen' },
 ];
 
+const items = ref<Item[]>([]);
+const candidates = ref<Item[]>([]);
+const brief = ref('');
+const asking = ref(false);
+const variety = ref(0.45);
+const spreadDays = ref(false);
 const template = ref('justified');
 const shape = ref('3:2');
 const gap = ref(8);
@@ -144,13 +217,11 @@ const error = ref('');
 let slot = 0;
 let timer: number | undefined;
 
-const maxCount = computed(() => Math.max(2, props.paths?.length || 24));
+const maxCount = computed(() => Math.max(2, items.value.length));
 const busy = computed(() => drafting.value || printing.value);
 const busyLabel = computed(() => (printing.value ? 'fetching originals and composing at print size…' : 'laying it out…'));
-const title = computed(() => {
-  const what = props.collectionLabel || props.collection;
-  return what ? `Light table · ${what}` : 'Light table · selected photos';
-});
+const title = computed(() =>
+  props.collectionLabel ? `Light table · ${props.collectionLabel}` : 'Light table · selected photos');
 const pageSrc = computed(() => (page.value ? convertFileSrc(page.value.path) : ''));
 const alt = computed(() => `${template.value} layout of ${page.value?.photos ?? 0} photos`);
 const caption = computed(() => {
@@ -164,10 +235,14 @@ const caption = computed(() => {
 const footer = computed(() =>
   printedPath.value ? 'printed; the file is in ~/Pictures/Photos Collages' : 'nothing is changed until you print');
 
+function thumb(fileId: number): string {
+  return getThumbUrl(fileId, false, 256);
+}
+
 function args() {
   return {
-    collection: props.collection ?? null,
-    paths: props.collection ? null : (props.paths ?? []),
+    collection: null,
+    paths: items.value.slice(0, count.value).map((i) => i.path),
     template: template.value,
     shape: shape.value,
     gap: gap.value,
@@ -177,6 +252,11 @@ function args() {
 }
 
 async function draft() {
+  if (items.value.length < 2) {
+    page.value = null;
+    error.value = 'keep at least two photos to lay out a page';
+    return;
+  }
   drafting.value = true;
   error.value = '';
   try {
@@ -193,6 +273,51 @@ async function draft() {
 function redraw() {
   if (timer) window.clearTimeout(timer);
   timer = window.setTimeout(draft, 220);
+}
+
+async function propose() {
+  if (asking.value) return;
+  asking.value = true;
+  error.value = '';
+  try {
+    const answer = (await invoke('light_table_select', {
+      brief: brief.value,
+      count: count.value,
+      variety: variety.value,
+      spread: spreadDays.value ? 'day' : 'none',
+    })) as { candidates?: Item[]; reason?: string; unmatched?: number };
+    candidates.value = answer.candidates ?? [];
+    if (!candidates.value.length) {
+      error.value = answer.reason || 'nothing matched; try describing it differently';
+    } else if (answer.unmatched) {
+      error.value = `${answer.unmatched} of the chosen photos are not in this library yet`;
+    }
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    asking.value = false;
+  }
+}
+
+function keep(i: number) {
+  const [taken] = candidates.value.splice(i, 1);
+  if (taken && !items.value.some((x) => x.path === taken.path)) {
+    items.value = [...items.value, taken];
+    count.value = items.value.length;
+  }
+}
+
+function keepAll() {
+  const fresh = candidates.value.filter((c) => !items.value.some((x) => x.path === c.path));
+  candidates.value = [];
+  if (!fresh.length) return;
+  items.value = [...items.value, ...fresh];
+  count.value = items.value.length;
+}
+
+function drop(i: number) {
+  items.value = items.value.filter((_, n) => n !== i);
+  count.value = Math.max(2, Math.min(count.value, items.value.length));
 }
 
 async function printIt() {
@@ -222,15 +347,15 @@ function close() {
   emit('close');
 }
 
-watch([template, shape, gap, count, faceSafe], () => {
+watch([template, shape, gap, count, faceSafe, items], () => {
   printedPath.value = '';
-  redraw();
-});
-watch(() => [props.collection, props.paths], () => { printedPath.value = ''; redraw(); });
+  if (items.value.length >= 2) redraw();
+}, { deep: true });
 
 onMounted(() => {
-  if (props.paths?.length) count.value = Math.min(props.paths.length, 12);
-  void draft();
+  items.value = [...(props.items ?? [])];
+  count.value = Math.max(2, Math.min(items.value.length || 9, 12));
+  if (items.value.length >= 2) void draft();
 });
 onBeforeUnmount(() => {
   if (timer) window.clearTimeout(timer);

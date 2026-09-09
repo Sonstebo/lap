@@ -142,10 +142,10 @@
     </transition>
 
     <LightTableDialog
-      v-if="composePaths.length"
-      :paths="composePaths"
+      v-if="composeItems.length"
+      :items="composeItems"
       :collectionLabel="composeName"
-      @close="composePaths = []"
+      @close="composeItems = []"
     />
 
     <MessageBox
@@ -391,18 +391,18 @@ async function confirmClear() {
   await tauriEmit('refresh-content');
 }
 
-const composePaths = ref<string[]>([]);
+const composeItems = ref<{ path: string; file_id: number }[]>([]);
 const composeName = ref('');
 
 async function openLightTable(collection: Collection) {
-  const paths = (await invoke('light_table_collection_paths', {
+  const found = (await invoke('light_table_collection_items', {
     collectionId: collection.id,
-  })) as string[];
-  if (!paths.length) {
+  })) as { path: string; file_id: number }[];
+  if (!found.length) {
     return;
   }
   composeName.value = collection.name;
-  composePaths.value = paths;
+  composeItems.value = found;
 }
 
 function collectionMenuItems(collection: Collection) {

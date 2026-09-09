@@ -3686,18 +3686,36 @@ impl AFile {
         .ok()
     }
 
+    /// The album entry for one of the tool's asset ids, if this library holds it.
+    /// Entries are named `<filename-safe id>@<original name>`, so the id is the
+    /// part before the first `@`; compared whole rather than with LIKE, whose
+    /// `_` would match any character and could pick the wrong photo.
+    pub fn entry_for_asset(asset_id: &str) -> Option<(i64, String)> {
+        let conn = open_conn().ok()?;
+        conn.query_row(
+            "SELECT a.id, d.path || '/' || a.name FROM afiles a \
+             JOIN afolders d ON d.id = a.folder_id \
+             WHERE substr(a.name, 1, instr(a.name, '@') - 1) = ?1 LIMIT 1",
+            [asset_id],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)),
+        )
+        .ok()
+    }
+
     /// The paths of the photos in one collection, oldest addition first.
     /// Collections in this library and the tool's own collections are separate
     /// namespaces, so the light table passes paths rather than a name.
-    pub fn paths_in_collection(collection_id: i64) -> Vec<String> {
+    pub fn paths_in_collection(collection_id: i64) -> Vec<(i64, String)> {
         let Ok(conn) = open_conn() else { return Vec::new() };
         let Ok(mut stmt) = conn.prepare(
-            "SELECT d.path || '/' || a.name FROM acollections_files cf \
+            "SELECT a.id, d.path || '/' || a.name FROM acollections_files cf \
              JOIN afiles a ON a.id = cf.file_id \
              JOIN afolders d ON d.id = a.folder_id \
              WHERE cf.collection_id = ?1 AND a.file_type IN (1, 3) \
              ORDER BY cf.added_at, cf.file_id") else { return Vec::new() };
-        let rows = stmt.query_map([collection_id], |row| row.get::<_, String>(0));
+        let rows = stmt.query_map([collection_id], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        });
         match rows {
             Ok(it) => it.filter_map(|r| r.ok()).collect(),
             Err(_) => Vec::new(),

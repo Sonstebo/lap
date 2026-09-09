@@ -109,38 +109,74 @@ pub async fn light_table_collections() -> Result<Value, String> {
         .map_err(|e| e.to_string())?
 }
 
-/// Ask the library to choose a set and put it in a collection.
+/// The tool's asset ids are made filename-safe before they name an album entry.
+/// This is the same rule, so a chosen photo can be found in this library.
+fn safe_name(asset_id: &str) -> String {
+    asset_id
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' { c } else { '_' })
+        .collect()
+}
+
+/// Ask the library to choose a set. Nothing is added anywhere: the chosen photos
+/// come back as candidates, and each one needs a keystroke to survive.
 #[tauri::command]
 pub async fn light_table_select(brief: Option<String>, count: i64, variety: f64,
-                                spread: String, into: String) -> Result<Value, String> {
+                                spread: String) -> Result<Value, String> {
     let cli = tool()?;
-    if into.trim().is_empty() {
-        return Err("name the collection to put them in".into());
-    }
     let mut args = vec!["select".to_string()];
     if let Some(text) = brief.as_ref().filter(|t| !t.trim().is_empty()) {
         args.push(text.clone());
     }
     args.push("--count".into());
-    args.push(count.max(1).to_string());
+    args.push(count.clamp(1, 60).to_string());
     args.push("--variety".into());
     args.push(format!("{:.2}", variety.clamp(0.0, 1.0)));
     if spread != "none" {
         args.push("--spread".into());
         args.push(spread);
     }
-    args.push("--into".into());
-    args.push(into);
-    args.push("--replace".into());
-    tauri::async_runtime::spawn_blocking(move || run_tool(&cli, &args, RENDER_TIMEOUT))
+    let mut answer = tauri::async_runtime::spawn_blocking(move || run_tool(&cli, &args, RENDER_TIMEOUT))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())??;
+
+    // The tool answers with its own asset ids; the interface needs the photos in
+    // this library, to show a thumbnail and to compose them.
+    let chosen: Vec<Value> = answer
+        .get("selected")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut candidates = Vec::new();
+    let mut unmatched = 0usize;
+    for item in &chosen {
+        let Some(id) = item.get("id").and_then(|v| v.as_str()) else { continue };
+        match crate::t_sqlite::AFile::entry_for_asset(&safe_name(id)) {
+            Some((file_id, path)) => candidates.push(serde_json::json!({
+                "asset_id": id,
+                "file_id": file_id,
+                "path": path,
+                "filename": item.get("filename").and_then(|v| v.as_str()).unwrap_or(""),
+                "taken": item.get("taken").and_then(|v| v.as_str()).unwrap_or(""),
+            })),
+            None => unmatched += 1,
+        }
+    }
+    if let Some(obj) = answer.as_object_mut() {
+        obj.insert("candidates".into(), Value::Array(candidates));
+        obj.insert("unmatched".into(), Value::from(unmatched));
+    }
+    Ok(answer)
 }
 
-/// The photos in one of this library's collections, as paths the tool understands.
+/// The photos in one of this library's collections: the file the interface draws
+/// a thumbnail for, and the path the tool composes.
 #[tauri::command]
-pub fn light_table_collection_paths(collection_id: i64) -> Vec<String> {
+pub fn light_table_collection_items(collection_id: i64) -> Vec<Value> {
     crate::t_sqlite::AFile::paths_in_collection(collection_id)
+        .into_iter()
+        .map(|(file_id, path)| serde_json::json!({ "file_id": file_id, "path": path }))
+        .collect()
 }
 
 #[cfg(test)]
@@ -166,6 +202,13 @@ mod tests {
         assert!(args.contains(&"/b.jpg".to_string()));
         assert!(!args.contains(&"--no-face-safe".to_string()));
         assert!(!args.contains(&"--count".to_string()));
+    }
+
+    #[test]
+    fn asset_ids_are_made_filename_safe_the_same_way_the_tool_does() {
+        assert_eq!(super::safe_name("201433D1-3A38-4090-B49C-0D94F223FFB1"),
+                   "201433D1-3A38-4090-B49C-0D94F223FFB1");
+        assert_eq!(super::safe_name("A001/x+y=="), "A001_x_y__");
     }
 
     #[test]

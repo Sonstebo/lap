@@ -695,9 +695,9 @@
        The trigger is empty; it's opened at cursor coordinates by
        handleSelectionContextMenu, and its popup teleports to <body>. -->
   <LightTableDialog
-    v-if="composePaths.length"
-    :paths="composePaths"
-    @close="composePaths = []"
+    v-if="composeItems.length"
+    :items="composeItems"
+    @close="composeItems = []"
   />
 
   <AskPhotoDialog
@@ -2311,7 +2311,7 @@ const fileIdsToTag = ref<number[]>([]);
 const showAddToCollectionDialog = ref(false);
 // the photo the "Ask about this photo" conversation is open for
 const askFileId = ref<number | null>(null);
-const composePaths = ref<string[]>([]);
+const composeItems = ref<{ path: string; file_id: number }[]>([]);
 const fileIdsToAddToCollection = ref<number[]>([]);
 
 // grid view
@@ -3944,8 +3944,9 @@ function handleItemAction(payload: { action: string, index: number }) {
     },
     'compose': () => {
       // Whatever is selected, in the order the grid shows it.
-      const chosen = getActionableSelectedItems().filter((f: any) => f?.file_type === 1);
-      composePaths.value = chosen.map((f: any) => String(f.file_path)).filter(Boolean);
+      composeItems.value = getActionableSelectedItems()
+        .filter((f: any) => f?.file_type === 1 && f?.file_path)
+        .map((f: any) => ({ path: String(f.file_path), file_id: Number(f.id) }));
     },
     'open-external-app': () => {
       void openInExternalApp();

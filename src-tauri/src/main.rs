@@ -284,7 +284,7 @@ async fn main() {
             t_table::light_table_render,
             t_table::light_table_collections,
             t_table::light_table_select,
-            t_table::light_table_collection_paths,
+            t_table::light_table_collection_items,
             t_cmds::get_album_managed,
             t_cmds::set_album_managed,
             t_cmds::set_album_fetch_command,
