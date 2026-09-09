@@ -169,6 +169,53 @@ pub async fn light_table_select(brief: Option<String>, count: i64, variety: f64,
     Ok(answer)
 }
 
+/// The books there are, so the interface can offer their names.
+#[tauri::command]
+pub async fn light_table_books() -> Result<Value, String> {
+    let cli = tool()?;
+    let args = vec!["book".to_string(), "list".to_string()];
+    tauri::async_runtime::spawn_blocking(move || run_tool(&cli, &args, DRAFT_TIMEOUT))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Put the page on screen into a book, creating the book if it is a new name.
+/// The page keeps the recipe, not the picture, so it is drawn when the book is
+/// exported and always matches what the page says.
+#[tauri::command]
+pub async fn light_table_add_to_book(book: String, shape: String, paths: Vec<String>,
+                                     template: String, caption: Option<String>) -> Result<Value, String> {
+    let cli = tool()?;
+    if book.trim().is_empty() {
+        return Err("name the book".into());
+    }
+    if paths.len() < 2 {
+        return Err("a page needs at least two photos".into());
+    }
+    let name = book.trim().to_string();
+    tauri::async_runtime::spawn_blocking(move || {
+        // Creating is idempotent; an existing book keeps the shape it was made with,
+        // and the tool reports which happened.
+        let made = run_tool(&cli, &["book".into(), "create".into(), name.clone(),
+                                    "--shape".into(), shape], DRAFT_TIMEOUT)?;
+        let mut args = vec!["book".to_string(), "add".to_string(), name.clone(),
+                            "--template".to_string(), template, "--id".to_string()];
+        args.extend(paths);
+        if let Some(text) = caption.as_ref().filter(|t| !t.trim().is_empty()) {
+            args.push("--caption".into());
+            args.push(text.trim().to_string());
+        }
+        let mut added = run_tool(&cli, &args, RENDER_TIMEOUT)?;
+        if let Some(obj) = added.as_object_mut() {
+            let fresh = made.get("created").and_then(|v| v.as_bool()).unwrap_or(false);
+            obj.insert("book_created".into(), Value::from(fresh));
+        }
+        Ok(added)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// The photos in one of this library's collections: the file the interface draws
 /// a thumbnail for, and the path the tool composes.
 #[tauri::command]

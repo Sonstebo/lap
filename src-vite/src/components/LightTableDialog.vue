@@ -77,6 +77,29 @@
             @click="revealPrinted"
           >Show in files</button>
         </div>
+
+        <!-- keep the page as a recipe in a book; it is drawn when the book is exported -->
+        <div class="flex gap-2 items-center">
+          <input
+            v-model="bookName"
+            list="light-table-books"
+            class="w-44 shrink-0 rounded bg-base-100/60 border border-base-content/20 px-2 py-1 outline-none"
+            placeholder="Book name"
+          />
+          <datalist id="light-table-books">
+            <option v-for="b in books" :key="b" :value="b"></option>
+          </datalist>
+          <input
+            v-model="pageCaption"
+            class="flex-1 min-w-0 rounded bg-base-100/60 border border-base-content/20 px-2 py-1 outline-none"
+            placeholder="Caption for this page (optional)"
+          />
+          <button
+            class="shrink-0 px-3 py-1 rounded border border-base-content/20 hover:bg-base-content/10 disabled:opacity-40"
+            :disabled="!bookName.trim() || items.length < 2 || adding"
+            @click="addToBook"
+          >{{ adding ? 'Adding…' : 'Add page to book' }}</button>
+        </div>
       </div>
 
       <!-- the rail -->
@@ -201,6 +224,11 @@ const shapes = [
 const items = ref<Item[]>([]);
 const candidates = ref<Item[]>([]);
 const brief = ref('');
+const bookName = ref('');
+const pageCaption = ref('');
+const books = ref<string[]>([]);
+const adding = ref(false);
+const added = ref('');
 const asking = ref(false);
 const variety = ref(0.45);
 const spreadDays = ref(false);
@@ -232,8 +260,11 @@ const caption = computed(() => {
     ? `${p.photos} photos${faces} · draft · ${p.note}`
     : `${p.photos} photos${faces} · ${p.width}×${p.height} · ${p.note}`;
 });
-const footer = computed(() =>
-  printedPath.value ? 'printed; the file is in ~/Pictures/Photos Collages' : 'nothing is changed until you print');
+const footer = computed(() => {
+  if (added.value) return `${added.value} · export it with: photos book export`;
+  if (printedPath.value) return 'printed; the file is in ~/Pictures/Photos Collages';
+  return 'nothing is changed until you print or add a page';
+});
 
 function thumb(fileId: number): string {
   return getThumbUrl(fileId, false, 256);
@@ -334,6 +365,39 @@ async function printIt() {
   }
 }
 
+async function addToBook() {
+  if (adding.value || !bookName.value.trim()) return;
+  adding.value = true;
+  error.value = '';
+  try {
+    const done = (await invoke('light_table_add_to_book', {
+      book: bookName.value.trim(),
+      shape: shape.value,
+      paths: items.value.slice(0, count.value).map((i) => i.path),
+      template: template.value,
+      caption: pageCaption.value,
+    })) as { page: number; book: string; book_created?: boolean };
+    added.value = done.book_created
+      ? `started ${done.book} with page ${done.page}`
+      : `page ${done.page} added to ${done.book}`;
+    pageCaption.value = '';
+    void loadBooks();
+  } catch (e) {
+    error.value = String(e);
+  } finally {
+    adding.value = false;
+  }
+}
+
+async function loadBooks() {
+  try {
+    const rows = (await invoke('light_table_books')) as { name: string }[];
+    books.value = rows.map((r) => r.name);
+  } catch {
+    books.value = [];
+  }
+}
+
 async function revealPrinted() {
   if (!printedPath.value) return;
   try {
@@ -353,6 +417,7 @@ watch([template, shape, gap, count, faceSafe, items], () => {
 }, { deep: true });
 
 onMounted(() => {
+  void loadBooks();
   items.value = [...(props.items ?? [])];
   count.value = Math.max(2, Math.min(items.value.length || 9, 12));
   if (items.value.length >= 2) void draft();
