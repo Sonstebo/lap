@@ -49,6 +49,8 @@
       <ContextMenu :menuItems="personPanelMenuItems" :iconMenu="IconMore" :smallIcon="true" />
     </div>
 
+    <PeopleGroupsDialog v-if="showGroups" @close="showGroups = false" />
+
     <div class="mx-1 mb-2 px-1 shrink-0">
       <div
         :class="[
@@ -217,9 +219,11 @@ import {
   IconUpdate,
   IconClose,
   IconSearch,
+  IconPersonSearch,
 } from '@/common/icons';
 
 import ContextMenu from '@/components/ContextMenu.vue';
+import PeopleGroupsDialog from '@/components/PeopleGroupsDialog.vue';
 import MessageBox from '@/components/MessageBox.vue';
 
 const props = defineProps({
@@ -303,7 +307,15 @@ const clusterProgressText = computed(() => {
   }
 });
 
+const showGroups = ref(false);
+
 const personPanelMenuItems = computed(() => [
+  {
+    // Naming by group, which is the only thing that spans a childhood.
+    label: 'Who is this?…',
+    icon: IconPersonSearch,
+    action: () => { showGroups.value = true; },
+  },
   {
     label: localeMsg.value.menu.person.index_faces,
     icon: IconUpdate,

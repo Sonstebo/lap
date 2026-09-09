@@ -15,6 +15,7 @@ use tauri_plugin_aptabase::EventTracker;
 
 mod t_ai;
 mod t_ask;
+mod t_people;
 mod t_table;
 mod t_ai_png;
 mod t_apple_sidecar;
@@ -287,6 +288,12 @@ async fn main() {
             t_table::light_table_collection_items,
             t_table::light_table_books,
             t_table::light_table_people,
+            t_people::people_build_groups,
+            t_people::people_groups,
+            t_people::people_face_crops,
+            t_people::people_name_group,
+            t_people::people_unname_group,
+            t_people::people_rematch,
             t_table::light_table_add_to_book,
             t_cmds::get_album_managed,
             t_cmds::set_album_managed,
