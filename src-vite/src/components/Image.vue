@@ -175,6 +175,7 @@
 
 <script setup lang="ts">
 import { ref, shallowRef, triggerRef, watch, onMounted, onBeforeUnmount, computed, nextTick } from 'vue';
+import { invoke } from '@tauri-apps/api/core';
 import { useUIStore } from '@/stores/uiStore';
 import { config, libConfig } from '@/common/config';
 import { SIDEBAR } from '@/common/constants';
@@ -496,6 +497,9 @@ const adjustmentStyle = computed(() => (src: string) => {
   return '';
 });
 
+// Paths already retried after a fetch-on-open, so a genuinely broken file fails once.
+const retriedFetch = new Set<string>();
+
 function loadImageResource(filePath?: string) {
   if (!filePath) {
     return Promise.reject(new Error('Missing file path'));
@@ -532,6 +536,29 @@ function loadImageResource(filePath?: string) {
 
     img.onerror = () => {
       preloadCache.delete(filePath);
+      // The file may live somewhere else until it is opened (an album with a
+      // fetch-on-open command). Ask the backend to materialise it, once.
+      if (!retriedFetch.has(filePath) && props.fileId) {
+        retriedFetch.add(filePath);
+        invoke('ensure_file_present', { fileId: Number(props.fileId) })
+          .then((present) => {
+            if (present) {
+              const retry = new Image();
+              retry.decoding = 'async';
+              // Resolve with the address that actually loaded: the caller puts it in the
+              // DOM, and the first one is remembered as broken by the webview.
+              const retrySrc = `${src}${src.includes('?') ? '&' : '?'}fetched=${Date.now()}`;
+              retry.onload = () =>
+                resolve({ src: retrySrc, naturalWidth: retry.naturalWidth, naturalHeight: retry.naturalHeight });
+              retry.onerror = () => reject(new Error(`Error loading image: ${filePath}`));
+              retry.src = retrySrc;
+            } else {
+              reject(new Error(`Error loading image: ${filePath}`));
+            }
+          })
+          .catch(() => reject(new Error(`Error loading image: ${filePath}`)));
+        return;
+      }
       reject(new Error(`Error loading image: ${filePath}`));
     };
 

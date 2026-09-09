@@ -2004,11 +2004,20 @@ fn sync_dirty_folders_by_mtime(
         FolderScanState::LIVE_PHOTO_PAIRING_VERSION,
     )?;
 
+    let mut album_managed: HashMap<i64, bool> = HashMap::new();
     for folder in AFolder::get_all()? {
         if !sync_generation_valid(generation) {
             return Ok((FolderMtimeSyncResult::default(), Vec::new()));
         }
         if album_scan_active(folder.album_id) {
+            continue;
+        }
+        // A managed album's rows belong to an external tool: its files may be absent
+        // until a fetch-on-open command materialises them, so never sync them away.
+        if *album_managed
+            .entry(folder.album_id)
+            .or_insert_with(|| Album::is_managed(folder.album_id))
+        {
             continue;
         }
         let root_accessible = *album_accessibility

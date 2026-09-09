@@ -17,8 +17,9 @@ use std::process::{Command, Stdio};
 use std::sync::{Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-/// How long one fetch may take before it is killed.
-const FETCH_TIMEOUT: Duration = Duration::from_secs(180);
+/// How long one fetch may take before it is killed. Generous: the file may be a
+/// full-resolution photo or a video coming over a slow link.
+const FETCH_TIMEOUT: Duration = Duration::from_secs(900);
 
 static IN_FLIGHT: OnceLock<(Mutex<HashSet<String>>, Condvar)> = OnceLock::new();
 

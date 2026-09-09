@@ -221,6 +221,15 @@ async fn handle_video_http_connection(mut stream: tokio::net::TcpStream) -> std:
         .await;
     };
 
+    // A video in an album with a fetch-on-open command may not be on disk until now.
+    if tokio::fs::metadata(&file_path).await.is_err() {
+        let template = crate::t_sqlite::AFile::fetch_command_for_path(&file_path);
+        let path_for_fetch = file_path.clone();
+        let _ = tokio::task::spawn_blocking(move || {
+            crate::t_fetch::ensure_present(template.as_deref(), &path_for_fetch)
+        })
+        .await;
+    }
     let Ok(metadata) = tokio::fs::metadata(&file_path).await else {
         return write_http_headers(
             &mut stream,

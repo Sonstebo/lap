@@ -288,6 +288,26 @@ pub fn add_library(name: &str) -> Result<Library, String> {
     t_config::add_library(name)
 }
 
+/// Make sure a file is on disk, running its album's fetch-on-open command if it is not.
+/// Returns whether the file is present afterwards. The webview loads ordinary images
+/// straight from disk, so it calls this when one fails to load and then retries.
+#[tauri::command]
+pub async fn ensure_file_present(file_id: i64) -> Result<bool, String> {
+    let Some(file) = t_sqlite::AFile::get_file_info(file_id)? else {
+        return Ok(false);
+    };
+    let Some(path) = file.file_path.filter(|p| !p.is_empty()) else {
+        return Ok(false);
+    };
+    if std::path::Path::new(&path).exists() {
+        return Ok(true);
+    }
+    let template = t_sqlite::AFile::fetch_command(file_id);
+    tauri::async_runtime::spawn_blocking(move || crate::t_fetch::ensure_present(template.as_deref(), &path))
+        .await
+        .map_err(|e| e.to_string())
+}
+
 /// whether an external tool maintains this album's rows (no scanning)
 #[tauri::command]
 pub fn get_album_managed(album_id: i64) -> Result<bool, String> {
@@ -1349,6 +1369,9 @@ pub async fn sync_album_folder_mtimes(
 ) -> Result<crate::t_utils::FolderMtimeSyncResult, String> {
     let sync_app_handle = app_handle.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
+        if t_sqlite::Album::is_managed(album_id) {
+            return Ok(Default::default());
+        }
         crate::t_utils::sync_single_folder(
             &sync_app_handle,
             album_id,

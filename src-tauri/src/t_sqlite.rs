@@ -3629,6 +3629,25 @@ impl AFile {
 
     /// get a file info from db by file_id
     /// The fetch-on-open command of the album a file belongs to (see t_fetch.rs).
+    /// The fetch-on-open command of the album that owns `file_path`, for callers that
+    /// only have a path (the video server).
+    pub fn fetch_command_for_path(file_path: &str) -> Option<String> {
+        let path = std::path::Path::new(file_path);
+        let name = path.file_name()?.to_string_lossy().to_string();
+        let folder = path.parent()?.to_string_lossy().to_string();
+        let conn = open_conn().ok()?;
+        conn.query_row(
+            "SELECT c.fetch_command FROM afiles a
+             JOIN afolders b ON a.folder_id = b.id
+             JOIN albums c ON b.album_id = c.id
+             WHERE b.path = ?1 AND a.name = ?2",
+            params![folder, name],
+            |row| row.get::<_, Option<String>>(0),
+        )
+        .ok()
+        .flatten()
+    }
+
     pub fn fetch_command(file_id: i64) -> Option<String> {
         let conn = open_conn().ok()?;
         conn.query_row(
