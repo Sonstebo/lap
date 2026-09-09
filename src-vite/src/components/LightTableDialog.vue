@@ -19,17 +19,36 @@
         <!-- ask for a set; nothing is added until you keep it -->
         <div class="flex gap-2 items-center">
           <input
+            v-model="person"
+            list="light-table-people"
+            class="w-36 shrink-0 rounded bg-base-100/60 border border-base-content/20 px-2 py-1 outline-none"
+            placeholder="Person"
+            title="Only photos this person's face was found in"
+            @keydown.enter.exact.prevent="propose"
+          />
+          <datalist id="light-table-people">
+            <option v-for="p in people" :key="p" :value="p"></option>
+          </datalist>
+          <input
             v-model="brief"
             class="flex-1 min-w-0 rounded bg-base-100/60 border border-base-content/20 px-2 py-1 outline-none"
-            placeholder="What should be in it? For example: the winter trip, one from each day"
+            placeholder="What should be in it? For example: the winter trip"
             @keydown.enter.exact.prevent="propose"
+          />
+          <input
+            v-model.number="suggestCount"
+            type="number"
+            min="2"
+            max="60"
+            class="w-16 shrink-0 rounded bg-base-100/60 border border-base-content/20 px-2 py-1 outline-none"
+            title="How many photos to suggest"
           />
           <button
             class="shrink-0 px-3 py-1 rounded border border-base-content/20 hover:bg-base-content/10 disabled:opacity-40"
-            :disabled="asking || (!brief.trim() && !items.length)"
-            :title="brief.trim() ? 'Find photos matching what you typed' : 'Find photos that go with the first one'"
+            :disabled="asking || (!brief.trim() && !person.trim() && !items.length)"
+            :title="askHint"
             @click="propose"
-          >{{ asking ? 'Looking…' : (brief.trim() ? 'Suggest' : 'More like this') }}</button>
+          >{{ asking ? 'Looking…' : askLabel }}</button>
         </div>
 
         <div v-if="candidates.length" class="flex flex-col gap-1">
@@ -147,10 +166,18 @@
           <p class="text-[10px] leading-tight opacity-40">0 is the closest match to what you asked for, 1 the widest spread.</p>
         </div>
 
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" v-model="spreadDays" class="checkbox checkbox-xs" />
-          <span class="text-xs">One from each day</span>
-        </label>
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] uppercase tracking-wider opacity-50">Spread over</label>
+          <div class="flex flex-wrap gap-1">
+            <button
+              v-for="sp in spreads"
+              :key="sp.id"
+              class="px-2 py-1 rounded border text-xs"
+              :class="sp.id === spread ? 'bg-primary text-primary-content border-primary' : 'border-base-content/20 hover:bg-base-content/10'"
+              @click="spread = sp.id"
+            >{{ sp.label }}</button>
+          </div>
+        </div>
 
         <div class="flex flex-col gap-1">
           <label class="text-[11px] uppercase tracking-wider opacity-50 flex justify-between">
@@ -232,7 +259,14 @@ const adding = ref(false);
 const added = ref('');
 const asking = ref(false);
 const variety = ref(0.45);
-const spreadDays = ref(false);
+const spread = ref('none');
+const person = ref('');
+const people = ref<string[]>([]);
+const suggestCount = ref(12);
+const spreads = [
+  { id: 'none', label: 'Nothing' }, { id: 'day', label: 'Days' },
+  { id: 'month', label: 'Months' }, { id: 'year', label: 'Years' },
+];
 const template = ref('justified');
 const shape = ref('3:2');
 const gap = ref(8);
@@ -317,10 +351,13 @@ async function propose() {
     const answer = (await invoke('light_table_select', {
       brief: brief.value,
       // With nothing typed, grow the set around the photo you started from.
-      similar: brief.value.trim() ? null : (items.value[0]?.path ?? null),
-      count: count.value,
+      similar: (brief.value.trim() || person.value.trim()) ? null : (items.value[0]?.path ?? null),
+      person: person.value.trim() || null,
+      // How many to suggest is its own number: capping it at the size of the set
+      // on screen meant a set of one could only ever be offered one companion.
+      count: Math.max(2, Math.min(60, suggestCount.value || 12)),
       variety: variety.value,
-      spread: spreadDays.value ? 'day' : 'none',
+      spread: spread.value,
     })) as { candidates?: Item[]; reason?: string; unmatched?: number };
     candidates.value = answer.candidates ?? [];
     if (!candidates.value.length) {
@@ -394,6 +431,26 @@ async function addToBook() {
   }
 }
 
+const askLabel = computed(() =>
+  (brief.value.trim() || person.value.trim()) ? 'Suggest' : 'More like this');
+const askHint = computed(() =>
+  person.value.trim() && !brief.value.trim()
+    ? `Photos ${person.value.trim()} appears in`
+    : brief.value.trim()
+      ? 'Find photos matching what you typed'
+      : 'Find photos that go with the first one');
+
+async function loadPeople() {
+  try {
+    const rows = (await invoke('light_table_people')) as { name?: string; display_name?: string; photos?: number }[];
+    people.value = rows
+      .filter((r) => (r.photos ?? 0) > 0 && (r.name || r.display_name))
+      .map((r) => String(r.name || r.display_name));
+  } catch {
+    people.value = [];
+  }
+}
+
 async function loadBooks() {
   try {
     const rows = (await invoke('light_table_books')) as { name: string }[];
@@ -423,6 +480,7 @@ watch([template, shape, gap, count, faceSafe, items], () => {
 
 onMounted(() => {
   void loadBooks();
+  void loadPeople();
   items.value = [...(props.items ?? [])];
   count.value = Math.max(2, Math.min(items.value.length || 9, 12));
   if (items.value.length >= 2) void draft();

@@ -121,7 +121,9 @@ fn safe_name(asset_id: &str) -> String {
 /// Ask the library to choose a set. Nothing is added anywhere: the chosen photos
 /// come back as candidates, and each one needs a keystroke to survive.
 #[tauri::command]
-pub async fn light_table_select(brief: Option<String>, similar: Option<String>, count: i64,
+#[allow(clippy::too_many_arguments)]
+pub async fn light_table_select(brief: Option<String>, similar: Option<String>,
+                                person: Option<String>, count: i64,
                                 variety: f64, spread: String) -> Result<Value, String> {
     let cli = tool()?;
     let mut args = vec!["select".to_string()];
@@ -131,6 +133,10 @@ pub async fn light_table_select(brief: Option<String>, similar: Option<String>, 
         // Growing a set around one photograph: the tool takes the album entry path.
         args.push("--similar".into());
         args.push(path.clone());
+    }
+    if let Some(name) = person.as_ref().filter(|p| !p.trim().is_empty()) {
+        args.push("--person".into());
+        args.push(name.clone());
     }
     args.push("--count".into());
     args.push(count.clamp(1, 60).to_string());
@@ -171,6 +177,16 @@ pub async fn light_table_select(brief: Option<String>, similar: Option<String>, 
         obj.insert("unmatched".into(), Value::from(unmatched));
     }
     Ok(answer)
+}
+
+/// The people the library has names for, so a set can be asked for by person.
+#[tauri::command]
+pub async fn light_table_people() -> Result<Value, String> {
+    let cli = tool()?;
+    let args = vec!["people".to_string()];
+    tauri::async_runtime::spawn_blocking(move || run_tool(&cli, &args, DRAFT_TIMEOUT))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// The books there are, so the interface can offer their names.
