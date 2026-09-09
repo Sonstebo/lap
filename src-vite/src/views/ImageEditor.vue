@@ -568,7 +568,10 @@ const localeMsg = computed(() => messages.value[locale.value] as any);
 
 const uiStore = useUIStore();
 const appWindow = getCurrentWebviewWindow();
-const showDesktopTitleBar = isWin || isLinux;
+// Linux here means a tiling compositor (Omarchy/Hyprland), which owns window
+// placement and gives no titlebar of its own: drawing one only takes a row of
+// pixels and offers buttons the compositor already has keys for.
+const showDesktopTitleBar = isWin;
 
 function sendToParent(payload: Record<string, any>) {
   void tauriEmit('message-from-image-editor', payload).catch((error) => {
