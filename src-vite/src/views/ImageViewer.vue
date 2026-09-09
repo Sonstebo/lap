@@ -1417,6 +1417,9 @@ const handleItemAction = async (payload: { action: string }) => {
   const pane = getActiveFilePane();
 
   switch (payload.action) {
+    case 'ask':
+      showAskDialog.value = true;
+      break;
     case 'favorite':
       await toggleFavorite(pane);
       break;
