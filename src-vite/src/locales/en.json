@@ -669,7 +669,8 @@
       "set_as": "Set as",
       "set_desktop_wallpaper": "Set as desktop wallpaper",
       "show_info": "Show info",
-      "remove_from_collection": "Remove from Collection"
+      "remove_from_collection": "Remove from Collection",
+      "ask_agent": "Ask about this photo…"
     },
     "calendar": {
       "monthly": "Monthly",
@@ -1203,7 +1204,12 @@
       "group_raw_jpeg_pairs_hint": "Show matching RAW and JPEG/HEIC files as a single item",
       "small_file_filter": "Small file filter",
       "small_file_filter_hint": "Hide files when both width and height are below the selected size",
-      "small_file_filter_options": ["Off", "160 px", "320 px", "640 px"],
+      "small_file_filter_options": [
+        "Off",
+        "160 px",
+        "320 px",
+        "640 px"
+      ],
       "section_sorting": "Sorting",
       "folder_sort": "Folders",
       "folder_sort_hint": "Sort order for folders shown under albums",

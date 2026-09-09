@@ -20,6 +20,7 @@ import {
   IconPersonSearch,
   IconImageEdit,
   IconExternal,
+  IconSparkles,
   IconHeartFilled,
   IconFlag,
   IconFlagFilled,
@@ -118,6 +119,14 @@ export const useFileMenuItems = (
         shortcut: shortcut('file.editImage'),
         disabled: !isImage,
         action: createAction('edit')
+      },
+      {
+        // Asking an agent for a change: a conversation that leaves the original alone.
+        label: String(localeMsg.value.menu.file.ask_agent || 'Ask about this photo…'),
+        icon: markRaw(IconSparkles),
+        shortcut: 'A',
+        disabled: !isImage,
+        action: createAction('ask')
       },
       {
         label: localeMsg.value.menu.file.print,

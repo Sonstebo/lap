@@ -695,6 +695,12 @@
        The trigger is empty; it's opened at cursor coordinates by
        handleSelectionContextMenu, and its popup teleports to <body>. -->
   <div class="hidden">
+    <AskPhotoDialog
+      v-if="askFileId"
+      :fileId="askFileId"
+      @close="askFileId = null"
+    />
+
     <ContextMenu
       ref="selectionMenuRef"
       :iconMenu="null"
@@ -748,6 +754,7 @@ import ProgressBar from '@/components/ProgressBar.vue';
 import GridView  from '@/components/GridView.vue';
 import PhotoMapView from '@/components/PhotoMapView.vue';
 import ContextMenu from '@/components/ContextMenu.vue';
+import AskPhotoDialog from '@/components/AskPhotoDialog.vue';
 import { useFileMenuItems } from '@/common/fileMenu';
 import Welcome from '@/components/Welcome.vue';
 import MediaViewer from '@/components/MediaViewer.vue';
@@ -2294,6 +2301,8 @@ const cancelTrashFailedMsgbox = () => {
 const showTaggingDialog = ref(false);
 const fileIdsToTag = ref<number[]>([]);
 const showAddToCollectionDialog = ref(false);
+// the photo the "Ask about this photo" conversation is open for
+const askFileId = ref<number | null>(null);
 const fileIdsToAddToCollection = ref<number[]>([]);
 
 // grid view
@@ -3917,6 +3926,7 @@ function handleItemAction(payload: { action: string, index: number }) {
     'open': () => openImageViewer(selectedItemIndex.value, true),
     'print': () => void printImage(selectedItemIndex.value),
     'edit': () => void openImageEditor(selectedItemIndex.value),
+    'ask': () => { askFileId.value = getActionableSelectedItems()[0]?.id ?? null; },
     'open-external-app': () => {
       void openInExternalApp();
     },
