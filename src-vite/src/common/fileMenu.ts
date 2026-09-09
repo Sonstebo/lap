@@ -83,6 +83,15 @@ export const useFileMenuItems = (
     const selectionCount = options?.selectionCount?.value ?? 0;
     return [
       {
+        // The same conversation the viewer offers, for one selected photo.
+        label: String(localeMsg.value.menu.file.ask_agent || 'Edit with AI…'),
+        icon: markRaw(IconSparkles),
+        shortcut: 'A',
+        disabled: kind === 'video' || selectionCount > 1,
+        action: createAction('ask'),
+      },
+      { label: '-', action: null },
+      {
         label: String(localeMsg.value.menu.file.compare_selected_images || 'Compare selected images'),
         icon: markRaw(selectionCount >= 3 ? IconSplitOn4 : IconSplitOn),
         disabled: kind !== 'image' || selectionCount < 2,
@@ -122,7 +131,7 @@ export const useFileMenuItems = (
       },
       {
         // Asking an agent for a change: a conversation that leaves the original alone.
-        label: String(localeMsg.value.menu.file.ask_agent || 'Ask about this photo…'),
+        label: String(localeMsg.value.menu.file.ask_agent || 'Edit with AI…'),
         icon: markRaw(IconSparkles),
         shortcut: 'A',
         disabled: !isImage,

@@ -65,6 +65,7 @@ fn wait_with_timeout(mut child: std::process::Child, timeout: Duration) -> Resul
 /// Queue an edit of `file_id`; returns the job.
 #[tauri::command]
 pub async fn photo_edit_start(file_id: i64, prompt: String, from_version: Option<i64>) -> Result<Value, String> {
+    println!("ask: edit requested for file {file_id}: {prompt}");
     let (cli, path) = crate::t_sqlite::AFile::tool_for(file_id)
         .ok_or("this album has no tool that can edit its photos")?;
     if prompt.trim().is_empty() {

@@ -694,13 +694,13 @@
        whole selection, so one instance lives here rather than one per thumbnail.
        The trigger is empty; it's opened at cursor coordinates by
        handleSelectionContextMenu, and its popup teleports to <body>. -->
-  <div class="hidden">
-    <AskPhotoDialog
-      v-if="askFileId"
-      :fileId="askFileId"
-      @close="askFileId = null"
-    />
+  <AskPhotoDialog
+    v-if="askFileId"
+    :fileId="askFileId"
+    @close="askFileId = null"
+  />
 
+  <div class="hidden">
     <ContextMenu
       ref="selectionMenuRef"
       :iconMenu="null"
@@ -755,6 +755,7 @@ import GridView  from '@/components/GridView.vue';
 import PhotoMapView from '@/components/PhotoMapView.vue';
 import ContextMenu from '@/components/ContextMenu.vue';
 import AskPhotoDialog from '@/components/AskPhotoDialog.vue';
+import { invoke } from '@tauri-apps/api/core';
 import { useFileMenuItems } from '@/common/fileMenu';
 import Welcome from '@/components/Welcome.vue';
 import MediaViewer from '@/components/MediaViewer.vue';
@@ -3926,7 +3927,13 @@ function handleItemAction(payload: { action: string, index: number }) {
     'open': () => openImageViewer(selectedItemIndex.value, true),
     'print': () => void printImage(selectedItemIndex.value),
     'edit': () => void openImageEditor(selectedItemIndex.value),
-    'ask': () => { askFileId.value = getActionableSelectedItems()[0]?.id ?? null; },
+    'ask': () => {
+      const file = fileList.value[selectedItemIndex.value] ?? getActionableSelectedItems()[0];
+      const id = Number(file?.id || 0);
+      // Tell the backend either way: a silent no-op here is impossible to diagnose.
+      void invoke('photo_can_edit', { fileId: id }).catch(() => {});
+      askFileId.value = id > 0 ? id : null;
+    },
     'open-external-app': () => {
       void openInExternalApp();
     },

@@ -1607,6 +1607,23 @@ pub fn rename_file(file_path: &str, new_file_name: &str) -> Option<String> {
     }
 }
 
+/// Percent-encode a filesystem path for a `file://` URI, leaving the separators alone.
+/// Everything outside the unreserved set plus `/` is escaped, so spaces, quotes,
+/// `#`, `%` and non-ASCII bytes survive the trip through D-Bus and the file manager.
+#[cfg(target_os = "linux")]
+fn percent_encode_path(path: &str) -> String {
+    let mut out = String::with_capacity(path.len());
+    for byte in path.as_bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => {
+                out.push(*byte as char)
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
 /// reveal a file or folder in the file explorer (or finder)
 pub fn reveal_path(path: &str) -> Result<(), String> {
     if path.trim().is_empty() {
@@ -1638,6 +1655,29 @@ pub fn reveal_path(path: &str) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         let target = Path::new(path);
+        if !target.is_dir() {
+            // Most Linux file managers implement org.freedesktop.FileManager1, which
+            // opens the folder with the file selected, the way Finder does on macOS.
+            let uri = format!("file://{}", percent_encode_path(path));
+            let shown = Command::new("gdbus")
+                .args([
+                    "call", "--session",
+                    "--dest", "org.freedesktop.FileManager1",
+                    "--object-path", "/org/freedesktop/FileManager1",
+                    "--method", "org.freedesktop.FileManager1.ShowItems",
+                    &format!("['{uri}']"),
+                    "",
+                ])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false);
+            if shown {
+                return Ok(());
+            }
+        }
+        // No such service: open the containing folder instead.
         let reveal_target = if target.is_dir() {
             path.to_string()
         } else {
@@ -4102,4 +4142,19 @@ pub async fn index_album_worker(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod reveal_tests {
+    use super::percent_encode_path;
+
+    #[test]
+    fn keeps_separators_and_escapes_the_rest() {
+        assert_eq!(
+            percent_encode_path("/home/a/Photos Edits/it's #1.png"),
+            "/home/a/Photos%20Edits/it%27s%20%231.png"
+        );
+        assert_eq!(percent_encode_path("/tmp/a-b_c.d~e"), "/tmp/a-b_c.d~e");
+        assert_eq!(percent_encode_path("/tmp/bær.jpg"), "/tmp/b%C3%A6r.jpg");
+    }
 }

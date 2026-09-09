@@ -15,10 +15,18 @@
       </div>
 
       <!-- what it was asked, for the version on screen -->
-      <p class="h-5 truncate opacity-70">
-        <span v-if="shown">{{ shown.prompt }} · {{ shown.method === 'generated' ? 'generated' : 'adjusted' }}<span v-if="shownSize"> · {{ shownSize }}</span></span>
-        <span v-else>The original, straight from iCloud. It is never changed.</span>
-      </p>
+      <div class="h-6 flex items-center gap-2">
+        <p class="truncate opacity-70 flex-1">
+          <span v-if="shown">{{ shown.prompt }} · {{ shown.method === 'generated' ? 'generated' : 'adjusted' }}<span v-if="shownSize"> · {{ shownSize }}</span></span>
+          <span v-else>The original, straight from iCloud. It is never changed.</span>
+        </p>
+        <button
+          class="shrink-0 px-2 py-1 rounded border border-base-content/20 hover:bg-base-content/10 disabled:opacity-40"
+          :disabled="!shown?.exists"
+          :title="shown ? shown.path : ''"
+          @click="revealSelected"
+        >Show in files</button>
+      </div>
 
       <!-- every version, oldest first; click one to see it and build on it -->
       <div class="flex gap-2 overflow-x-auto pb-1">
@@ -126,7 +134,7 @@ const presets = [
   { label: 'Remove background', prompt: 'Remove the background, keeping the main subject, on a plain white background.' },
 ];
 
-const title = computed(() => (props.fileName ? `Ask about ${props.fileName}` : 'Ask about this photo'));
+const title = computed(() => (props.fileName ? `Edit with AI · ${props.fileName}` : 'Edit with AI'));
 const shown = computed(() => versions.value.find((v) => v.id === selected.value) ?? null);
 const originalSrc = computed(() => getThumbUrl(props.fileId, false, 512));
 const shownSrc = computed(() =>
@@ -148,6 +156,16 @@ const footer = computed(() =>
 
 function fileSrc(path: string): string {
   return convertFileSrc(path);
+}
+
+/// Open the folder that holds this version, with the file selected.
+async function revealSelected() {
+  if (!shown.value?.path) return;
+  try {
+    await invoke('reveal_path', { path: shown.value.path });
+  } catch (e) {
+    error.value = String(e);
+  }
 }
 
 async function refresh() {
