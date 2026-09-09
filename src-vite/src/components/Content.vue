@@ -694,6 +694,12 @@
        whole selection, so one instance lives here rather than one per thumbnail.
        The trigger is empty; it's opened at cursor coordinates by
        handleSelectionContextMenu, and its popup teleports to <body>. -->
+  <LightTableDialog
+    v-if="composePaths.length"
+    :paths="composePaths"
+    @close="composePaths = []"
+  />
+
   <AskPhotoDialog
     v-if="askFileId"
     :fileId="askFileId"
@@ -755,6 +761,7 @@ import GridView  from '@/components/GridView.vue';
 import PhotoMapView from '@/components/PhotoMapView.vue';
 import ContextMenu from '@/components/ContextMenu.vue';
 import AskPhotoDialog from '@/components/AskPhotoDialog.vue';
+import LightTableDialog from '@/components/LightTableDialog.vue';
 import { invoke } from '@tauri-apps/api/core';
 import { useFileMenuItems } from '@/common/fileMenu';
 import Welcome from '@/components/Welcome.vue';
@@ -2304,6 +2311,7 @@ const fileIdsToTag = ref<number[]>([]);
 const showAddToCollectionDialog = ref(false);
 // the photo the "Ask about this photo" conversation is open for
 const askFileId = ref<number | null>(null);
+const composePaths = ref<string[]>([]);
 const fileIdsToAddToCollection = ref<number[]>([]);
 
 // grid view
@@ -3933,6 +3941,11 @@ function handleItemAction(payload: { action: string, index: number }) {
       // Tell the backend either way: a silent no-op here is impossible to diagnose.
       void invoke('photo_can_edit', { fileId: id }).catch(() => {});
       askFileId.value = id > 0 ? id : null;
+    },
+    'compose': () => {
+      // Whatever is selected, in the order the grid shows it.
+      const chosen = getActionableSelectedItems().filter((f: any) => f?.file_type === 1);
+      composePaths.value = chosen.map((f: any) => String(f.file_path)).filter(Boolean);
     },
     'open-external-app': () => {
       void openInExternalApp();

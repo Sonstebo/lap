@@ -15,6 +15,7 @@ use tauri_plugin_aptabase::EventTracker;
 
 mod t_ai;
 mod t_ask;
+mod t_table;
 mod t_ai_png;
 mod t_apple_sidecar;
 mod t_cluster;
@@ -279,6 +280,11 @@ async fn main() {
             t_ask::photo_versions,
             t_ask::photo_edit_jobs,
             t_ask::photo_can_edit,
+            t_table::light_table_draft,
+            t_table::light_table_render,
+            t_table::light_table_collections,
+            t_table::light_table_select,
+            t_table::light_table_collection_paths,
             t_cmds::get_album_managed,
             t_cmds::set_album_managed,
             t_cmds::set_album_fetch_command,

@@ -141,6 +141,13 @@
       </div>
     </transition>
 
+    <LightTableDialog
+      v-if="composePaths.length"
+      :paths="composePaths"
+      :collectionLabel="composeName"
+      @close="composePaths = []"
+    />
+
     <MessageBox
       v-if="deleteTarget"
       :title="$t('collection.delete_confirm_title')"
@@ -172,7 +179,9 @@ import { config, libConfig } from '@/common/config';
 import { clearCollection, createCollection, deleteCollection as deleteCollectionApi, getCollectionCounts, listCollections, renameCollection, reorderCollections } from '@/common/api';
 import { IconAdd, IconRight, IconEdit, IconMore, IconBookmark, IconRemove, IconTrash, IconClose, IconSearch, IconDragHandle, IconOrder } from '@/common/icons';
 import { VueDraggable } from 'vue-draggable-plus';
+import { invoke } from '@tauri-apps/api/core';
 import ContextMenu from '@/components/ContextMenu.vue';
+import LightTableDialog from '@/components/LightTableDialog.vue';
 import MessageBox from '@/components/MessageBox.vue';
 import TButton from '@/components/TButton.vue';
 
@@ -382,8 +391,28 @@ async function confirmClear() {
   await tauriEmit('refresh-content');
 }
 
+const composePaths = ref<string[]>([]);
+const composeName = ref('');
+
+async function openLightTable(collection: Collection) {
+  const paths = (await invoke('light_table_collection_paths', {
+    collectionId: collection.id,
+  })) as string[];
+  if (!paths.length) {
+    return;
+  }
+  composeName.value = collection.name;
+  composePaths.value = paths;
+}
+
 function collectionMenuItems(collection: Collection) {
   return [
+    {
+      // A collection is the working set; this is what it is for.
+      label: t('collection.compose'),
+      icon: IconEdit,
+      action: () => void openLightTable(collection),
+    },
     {
       label: t('collection.rename'),
       icon: IconEdit,

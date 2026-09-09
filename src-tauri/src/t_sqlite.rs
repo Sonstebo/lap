@@ -3686,6 +3686,24 @@ impl AFile {
         .ok()
     }
 
+    /// The paths of the photos in one collection, oldest addition first.
+    /// Collections in this library and the tool's own collections are separate
+    /// namespaces, so the light table passes paths rather than a name.
+    pub fn paths_in_collection(collection_id: i64) -> Vec<String> {
+        let Ok(conn) = open_conn() else { return Vec::new() };
+        let Ok(mut stmt) = conn.prepare(
+            "SELECT d.path || '/' || a.name FROM acollections_files cf \
+             JOIN afiles a ON a.id = cf.file_id \
+             JOIN afolders d ON d.id = a.folder_id \
+             WHERE cf.collection_id = ?1 AND a.file_type IN (1, 3) \
+             ORDER BY cf.added_at, cf.file_id") else { return Vec::new() };
+        let rows = stmt.query_map([collection_id], |row| row.get::<_, String>(0));
+        match rows {
+            Ok(it) => it.filter_map(|r| r.ok()).collect(),
+            Err(_) => Vec::new(),
+        }
+    }
+
     /// The fetch-on-open command of the album that owns `file_path`, for callers that
     /// only have a path (the video server).
     pub fn fetch_command_for_path(file_path: &str) -> Option<String> {

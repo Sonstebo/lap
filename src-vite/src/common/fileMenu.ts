@@ -90,6 +90,13 @@ export const useFileMenuItems = (
         disabled: kind === 'video' || selectionCount > 1,
         action: createAction('ask'),
       },
+      {
+        // Many photos into one picture; a collage of one is not a collage.
+        label: String(localeMsg.value.menu.file.compose || 'Compose…'),
+        icon: markRaw(IconSplitOn4),
+        disabled: kind !== 'image' || selectionCount < 2,
+        action: createAction('compose'),
+      },
       { label: '-', action: null },
       {
         label: String(localeMsg.value.menu.file.compare_selected_images || 'Compare selected images'),

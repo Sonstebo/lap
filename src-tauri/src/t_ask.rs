@@ -22,6 +22,12 @@ use serde_json::Value;
 const CALL_TIMEOUT: Duration = Duration::from_secs(120);
 
 fn run(cli: &str, args: &[String]) -> Result<Value, String> {
+    run_tool(cli, args, CALL_TIMEOUT)
+}
+
+/// Run the album's tool with `--json` and read one JSON object back.
+/// Blocking: call from a blocking task.
+pub(crate) fn run_tool(cli: &str, args: &[String], timeout: Duration) -> Result<Value, String> {
     let mut command = Command::new(cli);
     command.arg("--json").args(args);
     let child = command
@@ -30,7 +36,7 @@ fn run(cli: &str, args: &[String]) -> Result<Value, String> {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| format!("{cli}: {e}"))?;
-    let out = wait_with_timeout(child, CALL_TIMEOUT)?;
+    let out = wait_with_timeout(child, timeout)?;
     let stdout = String::from_utf8_lossy(&out.stdout);
     if !out.status.success() {
         // The tool's contract: one line of JSON on stderr with a code and a message.
