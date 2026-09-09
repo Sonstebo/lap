@@ -1444,6 +1444,9 @@ pub async fn copy_images(
 /// rename a file
 #[tauri::command]
 pub fn rename_file(file_id: i64, file_path: &str, new_name: &str) -> Option<String> {
+    if t_sqlite::Album::is_managed_for_file(file_id) {
+        return None;
+    }
     let sidecar_rename_plan = build_apple_sidecar_rename_plan(file_id, file_path, new_name).ok()?;
     if !preflight_rename_plan(file_path, new_name, &sidecar_rename_plan) {
         return None;
@@ -2166,11 +2169,19 @@ pub fn delete_file_permanently(
     delete_file_group(file_id, file_path, true)
 }
 
+/// The message a managed album gives when something would change its files: they are a
+/// view of somewhere else, and deleting or renaming the local copy would only confuse.
+pub const MANAGED_READ_ONLY: &str =
+    "This album is maintained by another program and is read-only here; change the photo where it comes from.";
+
 fn delete_file_group(
     file_id: i64,
     file_path: &str,
     permanently: bool,
 ) -> Result<BatchDeleteResult, String> {
+    if t_sqlite::Album::is_managed_for_file(file_id) {
+        return Err(MANAGED_READ_ONLY.to_string());
+    }
     let component_files = AFile::live_photo_component_files(file_id)?;
     let mut deleted_file_ids = Vec::with_capacity(component_files.len() + 1);
     let mut delete_errors = Vec::new();
@@ -2269,6 +2280,12 @@ pub(crate) fn delete_files_grouped(
     files: Vec<BatchDeleteFile>,
     permanently: bool,
 ) -> Result<BatchDeleteResult, String> {
+    if files
+        .iter()
+        .any(|f| t_sqlite::Album::is_managed_for_file(f.file_id))
+    {
+        return Err(MANAGED_READ_ONLY.to_string());
+    }
     struct DeleteGroup {
         primary_id: i64,
         primary_path: String,
